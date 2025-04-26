@@ -1,5 +1,10 @@
 name: 'NetRise Binary Composition Analysis'
 description: 'Analyze a binary for composition and identify potential security issues.'
+icon: 'icon.png'
+color: '#FF0002'
+categories:
+  - 'Security'
+  - 'Reporting'
 inputs:
   token-url:
     description: 'Authentication token for the SaaS platform'

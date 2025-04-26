@@ -1,6 +1,6 @@
 # NetRise: Binary Composition Analysis
 
-This action automates the process of uploading software artifacts to NetRise's Turbine for composition analysis.
+This action automates the process of uploading software artifacts to the NetRise Turbine Platform.
 
 ## Usage
 
