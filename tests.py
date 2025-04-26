@@ -1,5 +1,5 @@
-from auth import *
-from action import *
+from auth import create_client
+from action import create_config, submit, wait_for_processing, OUTPUT, error, str_error, BadInputException
 import os
 import base64
 
@@ -11,7 +11,7 @@ def test_config():
     except BadInputException:
         str_error(
             "Failed to create config",
-            "Please either provide the required environment variables/github inputs or supply a config.yaml file in the current working directory."
+            "Please either provide the required environment variables/github inputs or supply a config.yaml file in the current working directory.",
         )
         exit(1)
     print("Config test successful")
@@ -42,7 +42,7 @@ def test_submit(client):
         "1.2.3",
     )
     os.remove(".fake-firmware.bin")
-    
+
     print("Asset submission test successful")
     return (upload_id, asset_id, uploaded)
 
@@ -55,7 +55,7 @@ def test_wait_for_processing(client, asset_id):
 
 def test_all():
     print("Running tests...")
-    
+
     try:
         config = test_config()
         client = test_client(config)
@@ -67,7 +67,7 @@ def test_all():
         print(f"asset-id: {OUTPUT.asset_id}")
         print(f"upload-id: {OUTPUT.upload_id}")
         print(f"uploaded: {OUTPUT.uploaded}")
-        
+
     except Exception as e:
         error(e)
 

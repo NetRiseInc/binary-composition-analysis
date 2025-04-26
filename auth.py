@@ -10,16 +10,23 @@ class DetailedException(Exception):
     def __init__(self, message, detail=None):
         self.message = message
         self.detail = detail
+
     def __str__(self):
         return self.message
-    
 
-class AuthException(DetailedException): pass
-class SubmitAssetException(DetailedException): pass
+
+class AuthException(DetailedException):
+    pass
+
+
+class SubmitAssetException(DetailedException):
+    pass
 
 
 class Config:
-    def __init__(self, token_url, client_secret, audience, client_id, organization_id, endpoint):
+    def __init__(
+        self, token_url, client_secret, audience, client_id, organization_id, endpoint
+    ):
         self.token_url = token_url
         self.client_secret = client_secret
         self.audience = audience
@@ -52,14 +59,16 @@ def create_client(config: Config) -> Client:
         resp.raise_for_status()
 
         data = resp.json()
-        expires_in = now + timedelta(seconds=data["expires_in"])
+        now + timedelta(seconds=data["expires_in"])
         access_token = data["access_token"]
-        claims = jwt.decode(access_token, algorithms=["RS256"], options={"verify_signature": False})
+        claims = jwt.decode(
+            access_token, algorithms=["RS256"], options={"verify_signature": False}
+        )
 
     except Exception as e:
         raise AuthException(
             f"Failed to authenticate: {e} ({type(e).__name__})",
-            "An issue has occurred with authentication. Double-check your configuration inputs."
+            "An issue has occurred with authentication. Double-check your configuration inputs.",
         )
 
     print("Successfully authenticated")
@@ -86,7 +95,7 @@ def submit(
     name: str,
     manufacturer: str = "",
     model: str = "",
-    version: str = ""
+    version: str = "",
 ) -> (str, str, bool):
     """Submits an asset and returns a tuple of an upload id, asset id, and uploaded bool"""
 
@@ -112,17 +121,17 @@ def submit(
                 "name": name,
                 "model": model,
                 "manufacturer": manufacturer,
-                "version": version
+                "version": version,
             },
         },
     )
-    if 'errors' in submit_response:
+    if "errors" in submit_response:
         raise SubmitAssetException(
             f"Failed to generate upload URL: {submit_response.errors}",
-            "An exception occurred trying to generate an upload URL for the asset. Double-check your authentication info. This could also be due to a network issue."
+            "An exception occurred trying to generate an upload URL for the asset. Double-check your authentication info. This could also be due to a network issue.",
         )
 
-    upload_id = submit_response["asset"]["submit"]["uploadId"] 
+    upload_id = submit_response["asset"]["submit"]["uploadId"]
 
     try:
         upload_response = requests.put(
@@ -133,7 +142,7 @@ def submit(
     except requests.HTTPError as e:
         raise SubmitAssetException(
             f"Failed to submit asset: {e}",
-            "An exception occurred trying to upload the asset to Turbine. This is likely due to a network issue."
+            "An exception occurred trying to upload the asset to Turbine. This is likely due to a network issue.",
         )
 
     print("Successfully submitted asset")
@@ -160,20 +169,17 @@ def submit(
 
             poll_response = client.execute(
                 poll_query,
-                variable_values={
-                    "args": {
-                        "uploadId": upload_id
-                    }
-                },
+                variable_values={"args": {"uploadId": upload_id}},
             )
             uploaded = poll_response["assetUpload"]["uploaded"]
             asset_id = poll_response["assetUpload"]["assetId"]
-    except Exception as e: pass
+    except Exception:
+        pass
 
     if not asset_id:
         raise SubmitAssetException(
             "Asset submitted, but failed to get asset ID",
-            "The asset was successfully submitted to NetRise for processing, but the action failed to get its asset ID."
+            "The asset was successfully submitted to NetRise for processing, but the action failed to get its asset ID.",
         )
 
     return (upload_id, asset_id, uploaded)
@@ -181,7 +187,7 @@ def submit(
 
 def wait_for_processing(client: Client, asset_id: str) -> bool:
     """Waits for an asset to finish processing, and returns True if it was successful"""
-    
+
     query = gql(
         """
         query GetStatus($args: AssetInput!) {
