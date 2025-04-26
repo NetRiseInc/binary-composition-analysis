@@ -1,0 +1,82 @@
+name: 'NetRise Uploader'
+description: 'Upload a software artifact to NetRise for processing.'
+inputs:
+  token-url:
+    description: 'Authentication token for the SaaS platform'
+    required: true
+  client-secret:
+    description: 'auth0 client secret'
+    required: true
+  audience:
+    description: 'auth0 audience'
+    required: true
+  client-id:
+    description: 'auth0 client id'
+    required: true
+  organization-id:
+    description: 'NetRise Organization ID' 
+    required: true
+  endpoint:
+    description: 'API endpoint'
+    required: true
+  
+  artifact-path:
+    description: 'Path to the software artifact to upload to NetRise'
+    required: true
+  name:
+    description: 'Asset name'
+    required: true
+  manufacturer:
+    description: 'Asset manufacturer'
+    required: false
+  model:
+    description: 'Asset model'
+    required: false
+  version:
+    description: 'Asset version'
+    required: false
+  
+outputs:
+  upload-id:
+    description: 'Unique upload ID for this upload operation'
+  asset-id:
+    description: "The asset's ID in the system"
+  uploaded:
+    description: 'Boolean indicating if the upload is complete'
+  
+runs:
+  using: "composite"
+  steps:
+
+    - uses: actions/checkout@v4
+      with:
+        repository: puddlepep/gh-test-action
+        path: netrise-artifact-submitter
+        ref: v1
+    
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Submit Artifact
+      id: submit-artifact
+      run: |
+        cd netrise-artifact-submitter
+        pip install -r requirements.txt
+        python action.py
+      shell: bash
+      env:
+        # auth inputs
+        TOKEN_URL: ${{ inputs.token-url }}
+        CLIENT_SECRET: ${{ inputs.client-secret }}
+        AUDIENCE: ${{ inputs.audience }}
+        CLIENT_ID: ${{ inputs.client-id }}
+        ORGANIZATION_ID: ${{ inputs.organization-id }}
+        ENDPOINT: ${{ inputs.endpoint }}
+
+        # asset inputs
+        ARTIFACT_PATH: ../${{ inputs.artifact-path }}
+        NAME: ${{ inputs.name }}
+        MANUFACTURER: ${{ inputs.manufacturer }}
+        MODEL: ${{ inputs.model }}
+        VERSION: ${{ inputs.version }}
