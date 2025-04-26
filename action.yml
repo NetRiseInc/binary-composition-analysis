@@ -1,5 +1,5 @@
-name: 'NetRise Uploader'
-description: 'Upload a software artifact to NetRise for processing.'
+name: 'NetRise Binary Composition Analysis'
+description: 'Analyze a binary for composition and identify potential security issues.'
 inputs:
   token-url:
     description: 'Authentication token for the SaaS platform'

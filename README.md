@@ -1,12 +1,12 @@
-# NetRise: Turbine GitHub Action
+# NetRise: Binary Composition Analysis
 
-This action automates the process of uploading software artifacts to NetRise's Turbine for analysis.
+This action automates the process of uploading software artifacts to NetRise's Turbine for composition analysis.
 
 ## Usage
 
 ### GitHub Action
 
-```
+```bash
 - uses: netrise/artifact-submitter@v1
   with:
 
@@ -30,7 +30,7 @@ This action automates the process of uploading software artifacts to NetRise's T
 
 If you are using this in a self-hosted environment, provide the following environment variables before running the script `action.py`:
 
-```
+```bash
 # Authentication Info
 CLIENT_ID=""
 CLIENT_SECRET=""
@@ -51,7 +51,7 @@ You can also provide a `config.yaml` file in the working directory of the script
 
 ## Documentation
 
-### Input 
+### Input
 
 #### Authentication
 
@@ -77,7 +77,7 @@ The asset inputs configure how your software artifacts are sent to NetRise. Only
 
 After running, the action provides the following outputs:
 
-```
+```bash
 asset-id - The final submitted asset ID
 upload-id - The ID for the upload job
 uploaded - (True/False) Whether or not the asset was successfully uploaded
@@ -86,7 +86,8 @@ uploaded - (True/False) Whether or not the asset was successfully uploaded
 #### Self-Hosted
 
 If in a self-hosted environment, the action provides the following environment variables after running:
-```
+
+```bash
 ASSET_ID - The final submitted asset ID
 UPLOAD_ID - The ID for the upload job
 UPLOADED - (True/False) Whether or not the asset was successfully uploaded
@@ -116,4 +117,4 @@ This exception occurs when a network request takes too long to process. Please c
 
 ## Support
 
-You may contact us at support@netrise.com for any further questions.
+You may contact us at <support@netrise.com> for any further questions.
