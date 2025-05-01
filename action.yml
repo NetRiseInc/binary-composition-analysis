@@ -56,7 +56,7 @@ runs:
 
     - uses: actions/checkout@v4
       with:
-        repository: puddlepep/gh-test-action
+        repository: NetRiseInc/binary-composition-analysis
         path: netrise-artifact-submitter
         ref: v1
     
