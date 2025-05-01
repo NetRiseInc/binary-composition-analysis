@@ -7,7 +7,7 @@ This action automates the process of uploading software artifacts to the NetRise
 ### GitHub Action
 
 ```bash
-- uses: netrise/artifact-submitter@v1
+- uses: NetRiseInc/binary-composition-analysis@v1
   with:
 
     # Authentication Info

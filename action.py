@@ -107,7 +107,7 @@ def create_config():
                 os.environ[name] = value
             print("Using authentication info from config.yaml")
     except Exception as e:
-        print(e)
+        pass
 
     # create the config
     config = Config(
@@ -165,7 +165,7 @@ def main():
     print("Waiting for asset to finish processing...")
 
     try:
-        processed_successfully = wait_for_processing(client, OUTPUT.asset_id)
+        processed_successfully = retry(5, wait_for_processing, client, OUTPUT.asset_id)
         if processed_successfully:
             print("Asset successfully processed")
         else:
@@ -174,6 +174,7 @@ def main():
                 "The asset was successfully submitted, however it failed to finish processing.",
             )
     except Exception as e:
+        print("The asset was successfully submitted, however an error occurred while waiting for it to finish processing.")
         error(e)
 
 
