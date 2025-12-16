@@ -58,7 +58,7 @@ runs:
       with:
         repository: NetRiseInc/binary-composition-analysis
         path: netrise-artifact-submitter
-        ref: v1
+        ref: ${{ github.action_ref }}
     
     - uses: actions/setup-python@v5
       with:
