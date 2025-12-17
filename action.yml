@@ -45,10 +45,10 @@ inputs:
 outputs:
   upload-id:
     description: 'Unique upload ID for this upload operation'
-  asset-id:
-    description: "The asset's ID in the system"
   uploaded:
     description: 'Boolean indicating if the upload is complete'
+  asset-id:
+    description: "The asset's ID in the system"
   
 runs:
   using: "composite"
@@ -62,13 +62,13 @@ runs:
     
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
 
     - name: Submit Artifact
       id: submit-artifact
       run: |
         cd netrise-artifact-submitter
-        pip install -r requirements.txt
+        pip install netrise-turbine-sdk
         python action.py
       shell: bash
       env:
