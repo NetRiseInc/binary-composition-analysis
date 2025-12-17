@@ -1,5 +1,5 @@
 import os
-from auth import create_sdk_config, create_client, submit_asset, query_asset_upload, DetailedException
+from auth import create_sdk_config, create_client, submit_asset, query_asset_upload_with_retry, DetailedException
 
 
 class BadInputException(DetailedException):
@@ -131,13 +131,17 @@ def main():
 
     print(f"Upload complete. Upload ID: {OUTPUT.upload_id}")
     
-    # query asset upload to get uploaded status and asset_id
+    # query asset upload to get uploaded status and asset_id with retry logic
     print("Querying asset upload status...")
     try:
-        OUTPUT.upload_id, OUTPUT.uploaded, OUTPUT.asset_id = query_asset_upload(
-            client, OUTPUT.upload_id
+        # Get retry configuration from environment (optional, defaults to 10 retries with 2s delay)
+        max_retries = max(1, int(os.getenv("MAX_RETRIES", "10")))  # Ensure at least 1 retry
+        retry_delay = max(0.5, float(os.getenv("RETRY_DELAY_SECONDS", "2.0")))  # Ensure at least 0.5s delay
+        
+        OUTPUT.upload_id, OUTPUT.uploaded, OUTPUT.asset_id = query_asset_upload_with_retry(
+            client, OUTPUT.upload_id, max_retries=max_retries, retry_delay_seconds=retry_delay
         )
-        print(f"Upload status - Upload ID: {OUTPUT.upload_id}, Uploaded: {OUTPUT.uploaded}, Asset ID: {OUTPUT.asset_id}")
+        print(f"Final status - Upload ID: {OUTPUT.upload_id}, Uploaded: {OUTPUT.uploaded}, Asset ID: {OUTPUT.asset_id}")
     except Exception as e:
         error(e)
 

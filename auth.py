@@ -162,3 +162,47 @@ def query_asset_upload(client: TurbineClient, upload_id: str) -> tuple[str, bool
             f"Failed to query asset upload: {e} ({type(e).__name__})",
             "An exception occurred trying to query the asset upload status.",
         )
+
+
+def query_asset_upload_with_retry(
+    client: TurbineClient,
+    upload_id: str,
+    max_retries: int = 10,
+    retry_delay_seconds: float = 2.0,
+) -> tuple[str, bool, str]:
+    """Query asset upload status with retry logic until asset_id is available or max retries reached.
+    
+    Args:
+        client: TurbineClient instance
+        upload_id: The upload ID to query
+        max_retries: Maximum number of retry attempts (default: 10, minimum: 1)
+        retry_delay_seconds: Delay between retries in seconds (default: 2.0, minimum: 0.5)
+    
+    Returns:
+        tuple: (upload_id, uploaded, asset_id)
+    """
+    import time
+    
+    # Ensure valid retry parameters
+    max_retries = max(1, max_retries)
+    retry_delay_seconds = max(0.5, retry_delay_seconds)
+    
+    for attempt in range(1, max_retries + 1):
+        upload_id_result, uploaded, asset_id = query_asset_upload(client, upload_id)
+        
+        # If we got an asset_id, we're done
+        if asset_id:
+            if attempt > 1:
+                print(f"Asset ID retrieved after {attempt} attempt(s)")
+            return (upload_id_result, uploaded, asset_id)
+        
+        # If this is not the last attempt, wait and retry
+        if attempt < max_retries:
+            print(f"Attempt {attempt}/{max_retries}: Asset ID not yet available. Retrying in {retry_delay_seconds}s...")
+            time.sleep(retry_delay_seconds)
+        else:
+            print(f"Attempt {attempt}/{max_retries}: Asset ID still not available after {max_retries} attempts.")
+            print("This is normal - the asset may still be processing. The upload_id can be used to query status later.")
+    
+    # Return the last result even if asset_id is empty
+    return (upload_id_result, uploaded, asset_id)
