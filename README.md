@@ -1,6 +1,6 @@
 # NetRise: Binary Composition Analysis
 
-This action automates the process of uploading software artifacts to the NetRise Turbine Platform.
+This action automates the process of uploading software artifacts to the NetRise Turbine Platform. The action uploads the artifact, queries the upload status, and returns the upload ID, upload status, and asset ID. It does not wait for processing to complete.
 
 ## Usage
 
@@ -78,9 +78,9 @@ The asset inputs configure how your software artifacts are sent to NetRise. Only
 After running, the action provides the following outputs:
 
 ```bash
-asset-id - The final submitted asset ID
 upload-id - The ID for the upload job
-uploaded - (True/False) Whether or not the asset was successfully uploaded
+uploaded - Boolean indicating if the upload is complete
+asset-id - The asset's ID in the system
 ```
 
 #### Self-Hosted
@@ -88,9 +88,9 @@ uploaded - (True/False) Whether or not the asset was successfully uploaded
 If in a self-hosted environment, the action provides the following environment variables after running:
 
 ```bash
-ASSET_ID - The final submitted asset ID
 UPLOAD_ID - The ID for the upload job
-UPLOADED - (True/False) Whether or not the asset was successfully uploaded
+UPLOADED - Boolean indicating if the upload is complete
+ASSET_ID - The asset's ID in the system
 ```
 
 ### Errors
@@ -105,15 +105,7 @@ An exception has occurred while initially authenticating. This is likely due to 
 
 #### SubmitAssetException
 
-An exception occured when trying to submit your software artifact to Turbine. This is most likely a network issue: either failing to get an upload URL from NetRise's servers, or failing to upload the artifact to that URL. It is also possible this is an authentication issue, so double-check your authentication information.
-
-#### ProcessingException
-
-This exception occurs only when your asset fails to process. This means your software artifact was successfully submitted to Turbine, however the platform failed to process it. Please contact support for help figuring out what the issue with your software artifact is.
-
-#### TimeoutError
-
-This exception occurs when a network request takes too long to process. Please check your network condition.
+An exception occurred when trying to submit your software artifact to Turbine. This is most likely a network issue: either failing to get an upload URL from NetRise's servers, or failing to upload the artifact to that URL. It is also possible this is an authentication issue, so double-check your authentication information.
 
 ## Support
 

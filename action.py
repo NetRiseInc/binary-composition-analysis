@@ -1,32 +1,27 @@
 import os
-import time
-from auth import Config, create_client, submit, wait_for_processing, DetailedException
+from auth import create_sdk_config, create_client, submit_asset, query_asset_upload, DetailedException
 
 
 class BadInputException(DetailedException):
     pass
 
 
-class ProcessingException(DetailedException):
-    pass
-
-
 class Output:
     def __init__(self):
-        self.asset_id = ""
         self.upload_id = ""
         self.uploaded = False
+        self.asset_id = ""
 
     def write(self):
         if is_github_action():
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                print(f"asset-id={self.asset_id}", file=f)
                 print(f"upload-id={self.upload_id}", file=f)
                 print(f"uploaded={self.uploaded}", file=f)
+                print(f"asset-id={self.asset_id}", file=f)
         else:
-            os.environ["ASSET_ID"] = self.asset_id
             os.environ["UPLOAD_ID"] = self.upload_id
             os.environ["UPLOADED"] = str(self.uploaded)
+            os.environ["ASSET_ID"] = self.asset_id
 
 
 OUTPUT = Output()
@@ -35,10 +30,8 @@ OUTPUT = Output()
 def error(exception):
     OUTPUT.write()
     str_error(type(exception).__name__, str(exception))
-    if exception is DetailedException and exception.detail:
+    if isinstance(exception, DetailedException) and exception.detail:
         print(exception.detail)
-    if isinstance(exception, TimeoutError):
-        print("A timeout has repeatedly occured. Please check your network conditions.")
     print()
     print("Check the README documentation for info about this exception.")
     print("For further support, contact support@netrise.com")
@@ -68,30 +61,6 @@ def get_input(env: str, required: bool):
     return value
 
 
-def retry(retries, function, *args, **kwargs):
-    """Retries a function `retries` times with exponential backoff"""
-
-    tries = 0
-    while True:
-        try:
-            return function(*args, **kwargs)
-        except Exception as e:
-            if tries == retries:
-                raise e
-
-            if is_github_action():
-                print(
-                    f"::warning title={type(e).__name__}::Retrying... ({tries+1}/{retries} retries)"
-                )
-            else:
-                print(
-                    f"ERROR: {type(e).__name__}: Retrying... ({tries+1}/{retries} retries)"
-                )
-            t = 2 * 2**tries
-            time.sleep(t)
-            tries += 1
-
-
 def is_github_action():
     return os.getenv("GITHUB_ACTIONS", False)
 
@@ -109,22 +78,21 @@ def create_config():
     except Exception as e:
         pass
 
-    # create the config
-    config = Config(
-        get_input("TOKEN_URL", True),
-        get_input("CLIENT_SECRET", True),
-        get_input("AUDIENCE", True),
-        get_input("CLIENT_ID", True),
-        get_input("ORGANIZATION_ID", True),
-        get_input("ENDPOINT", True),
-    )
+    # create the SDK config
+    try:
+        config = create_sdk_config()
+    except Exception as e:
+        raise BadInputException(
+            f"Failed to create config: {e}",
+            "Please either provide the required environment variables/github inputs or supply a config.yaml file in the current working directory.",
+        )
 
     return config
 
 
 def main():
     try:
-        # create the config file
+        # create the config
         config = create_config()
 
         # collect asset inputs
@@ -146,35 +114,31 @@ def main():
     if version:
         print(f"Version: '{version}'")
 
-    # create gql client
+    # create SDK client
     try:
-        client = retry(5, create_client, config)
+        client = create_client(config)
     except Exception as e:
         error(e)
     print("Created client")
 
-    # submit and assign outputs
+    # submit asset and get upload_id
     try:
-        OUTPUT.upload_id, OUTPUT.asset_id, OUTPUT.uploaded = retry(
-            5, submit, client, artifact_path, name, manufacturer, model, version
+        OUTPUT.upload_id = submit_asset(
+            client, artifact_path, name, manufacturer, model, version
         )
     except Exception as e:
         error(e)
 
-    # wait for the asset to finish processing and print the result
-    print("Waiting for asset to finish processing...")
-
+    print(f"Upload complete. Upload ID: {OUTPUT.upload_id}")
+    
+    # query asset upload to get uploaded status and asset_id
+    print("Querying asset upload status...")
     try:
-        processed_successfully = retry(5, wait_for_processing, client, OUTPUT.asset_id)
-        if processed_successfully:
-            print("Asset successfully processed")
-        else:
-            raise ProcessingException(
-                "Asset failed to process",
-                "The asset was successfully submitted, however it failed to finish processing.",
-            )
+        OUTPUT.upload_id, OUTPUT.uploaded, OUTPUT.asset_id = query_asset_upload(
+            client, OUTPUT.upload_id
+        )
+        print(f"Upload status - Upload ID: {OUTPUT.upload_id}, Uploaded: {OUTPUT.uploaded}, Asset ID: {OUTPUT.asset_id}")
     except Exception as e:
-        print("The asset was successfully submitted, however an error occurred while waiting for it to finish processing.")
         error(e)
 
 
