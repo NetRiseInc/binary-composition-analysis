@@ -14,7 +14,7 @@ This action automates the process of uploading software artifacts to the NetRise
     client-id: ""
     client-secret: ""
     organization-id: ""
-    token-url: ""
+    domain: ""
     audience: ""
     endpoint: ""
     
@@ -35,7 +35,7 @@ If you are using this in a self-hosted environment, provide the following enviro
 CLIENT_ID=""
 CLIENT_SECRET=""
 ORGANIZATION_ID=""
-TOKEN_URL=""
+DOMAIN=""
 AUDIENCE=""
 ENDPOINT=""
 

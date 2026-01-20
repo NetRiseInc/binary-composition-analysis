@@ -7,8 +7,8 @@ categories:
   - 'Security'
   - 'Reporting'
 inputs:
-  token-url:
-    description: 'Authentication token for the SaaS platform'
+  domain:
+    description: 'Auth0 domain (e.g., https://authn.turbine.netrise.io)'
     required: true
   client-secret:
     description: 'auth0 client secret'
@@ -73,7 +73,7 @@ runs:
       shell: bash
       env:
         # auth inputs
-        TOKEN_URL: ${{ inputs.token-url }}
+        DOMAIN: ${{ inputs.domain }}
         CLIENT_SECRET: ${{ inputs.client-secret }}
         AUDIENCE: ${{ inputs.audience }}
         CLIENT_ID: ${{ inputs.client-id }}

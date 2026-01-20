@@ -23,15 +23,12 @@ class SubmitAssetException(DetailedException):
 
 def create_sdk_config() -> TurbineClientConfig:
     """Create TurbineClientConfig from environment variables."""
-    token_url = os.getenv("TOKEN_URL")
-    if not token_url:
+    domain = os.getenv("DOMAIN")
+    if not domain:
         raise AuthException(
-            "TOKEN_URL is required",
-            "The TOKEN_URL environment variable must be set.",
+            "DOMAIN is required",
+            "The DOMAIN environment variable must be set.",
         )
-    
-    # Extract domain: "https://domain.auth0.com/oauth/token" -> "https://domain.auth0.com"
-    auth0_domain = token_url.rsplit("/oauth/token", 1)[0].rstrip("/")
     
     endpoint = os.getenv("ENDPOINT")
     if not endpoint:
@@ -42,11 +39,11 @@ def create_sdk_config() -> TurbineClientConfig:
     
     return TurbineClientConfig(
         endpoint=endpoint,
-        auth0_domain=auth0_domain,
-        auth0_client_id=os.getenv("CLIENT_ID"),
-        auth0_client_secret=os.getenv("CLIENT_SECRET"),
-        auth0_audience=os.getenv("AUDIENCE"),
-        auth0_organization_id=os.getenv("ORGANIZATION_ID"),
+        domain=domain,
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        audience=os.getenv("AUDIENCE"),
+        organization_id=os.getenv("ORGANIZATION_ID"),
     )
 
 
