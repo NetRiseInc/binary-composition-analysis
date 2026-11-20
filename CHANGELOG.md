@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.10
+
+- Minor fix to test release automation
+
 ## 1.0.9
 
 - Fix floating major-tag updates in `make release`: peel annotated release tags to the commit and write a lightweight unsigned `vN` tag (avoids nested tags and gitsign/sigstore hangs).
