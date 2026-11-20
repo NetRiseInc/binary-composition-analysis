@@ -238,7 +238,11 @@ gh release create "$VERSION" \
 
 if [[ "$UPDATE_MAJOR" == "1" ]]; then
   echo "==> Updating floating major tag $MAJOR_TAG -> $VERSION"
-  git tag -f "$MAJOR_TAG" "$VERSION"
+  # Peel annotated release tags to the commit. Use a lightweight unsigned tag:
+  # pointing at the tag object nests tags, and signed annotated tags hang on
+  # sigstore/gpg prompts during automation.
+  target_commit="$(git rev-parse "${VERSION}^{commit}")"
+  git -c tag.gpgSign=false tag -f "$MAJOR_TAG" "$target_commit"
   git push "$REMOTE" "refs/tags/$MAJOR_TAG" --force
 else
   echo "==> Skipping floating major tag update ($MAJOR_TAG)"
