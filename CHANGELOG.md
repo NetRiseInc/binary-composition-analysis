@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.9
+
+- Fix floating major-tag updates in `make release`: peel annotated release tags to the commit and write a lightweight unsigned `vN` tag (avoids nested tags and gitsign/sigstore hangs).
+
 ## 1.0.8
 
 - Fix composite action outputs so `upload-id`, `uploaded`, and `asset-id` are available to callers.
