@@ -8,7 +8,8 @@
 - Pin `netrise-turbine-sdk==0.1.28` and `httpx` via `requirements.txt`.
 - Stream artifact uploads instead of loading the whole file into memory.
 - Self-hosted mode writes `netrise-outputs.env` (process env mutation never reached the parent shell).
-- Add maintainer CI (ruff + pytest) and a tag-triggered release workflow.
+- Add maintainer CI (ruff + pytest) and `make release` via the GitHub CLI (`gh`).
+
 
 ## 1.0.0
 

@@ -118,6 +118,9 @@ Optional: put auth fields in a local `config.yaml` (`KEY: value` lines) instead 
 ```bash
 make install   # once
 make check     # lint + format check + tests (same gates as CI)
+
+# After changes are on origin/main (interactive: suggests minor/major, y/n confirm):
+make release
 ```
 
-Release and floating `@v1` tag steps: [RELEASE.md](RELEASE.md).
+Details: [RELEASE.md](RELEASE.md).
