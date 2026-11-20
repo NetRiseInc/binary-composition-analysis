@@ -3,12 +3,9 @@ description: 'Analyze a binary for composition and identify potential security i
 branding:
   icon: 'arrow-up-circle'
   color: 'red'
-categories:
-  - 'Security'
-  - 'Reporting'
 inputs:
   domain:
-    description: 'Auth0 domain (e.g., https://authn.turbine.netrise.io)'
+    description: 'Auth0 domain (e.g., https://authn.turbine.netrise.io). Do not use a full /oauth/token URL.'
     required: true
   client-secret:
     description: 'auth0 client secret'
@@ -20,14 +17,14 @@ inputs:
     description: 'auth0 client id'
     required: true
   organization-id:
-    description: 'NetRise Organization ID' 
+    description: 'NetRise Organization ID'
     required: true
   endpoint:
     description: 'API endpoint'
     required: true
-  
+
   artifact-path:
-    description: 'Path to the software artifact to upload to NetRise'
+    description: 'Path to the software artifact to upload to NetRise (relative to the job workspace, or absolute)'
     required: true
   name:
     description: 'Asset name'
@@ -41,35 +38,32 @@ inputs:
   version:
     description: 'Asset version'
     required: false
-  
+
 outputs:
   upload-id:
     description: 'Unique upload ID for this upload operation'
+    value: ${{ steps.submit-artifact.outputs.upload-id }}
   uploaded:
     description: 'Boolean indicating if the upload is complete'
+    value: ${{ steps.submit-artifact.outputs.uploaded }}
   asset-id:
     description: "The asset's ID in the system"
-  
+    value: ${{ steps.submit-artifact.outputs.asset-id }}
+
 runs:
   using: "composite"
   steps:
-
-    - uses: actions/checkout@v4
-      with:
-        repository: NetRiseInc/binary-composition-analysis
-        path: netrise-artifact-submitter
-        ref: main
-    
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: pip
+        cache-dependency-path: ${{ github.action_path }}/requirements.txt
 
     - name: Submit Artifact
       id: submit-artifact
       run: |
-        cd netrise-artifact-submitter
-        pip install netrise-turbine-sdk
-        python action.py
+        pip install -r "${{ github.action_path }}/requirements.txt"
+        python "${{ github.action_path }}/action.py"
       shell: bash
       env:
         # auth inputs
@@ -81,7 +75,7 @@ runs:
         ENDPOINT: ${{ inputs.endpoint }}
 
         # asset inputs
-        ARTIFACT_PATH: ../${{ inputs.artifact-path }}
+        ARTIFACT_PATH: ${{ inputs.artifact-path }}
         NAME: ${{ inputs.name }}
         MANUFACTURER: ${{ inputs.manufacturer }}
         MODEL: ${{ inputs.model }}

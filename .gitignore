@@ -176,3 +176,13 @@ cython_debug/
 
 # MacOS
 .DS_Store
+
+# Self-hosted action outputs
+netrise-outputs.env
+config.yaml
+
+# AI Agent
+.cursor/
+
+# Graft
+graft/

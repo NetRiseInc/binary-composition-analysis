@@ -1,112 +1,123 @@
-# NetRise: Binary Composition Analysis
+# NetRise Binary Composition Analysis
 
-This action automates the process of uploading software artifacts to the NetRise Turbine Platform. The action uploads the artifact, queries the upload status, and returns the upload ID, upload status, and asset ID. It does not wait for processing to complete.
+GitHub Action that uploads a software artifact to the [NetRise Turbine](https://netrise.io) platform and returns upload identifiers you can use in later steps.
 
-## Usage
+It authenticates, uploads the file, then polls briefly for an asset ID. It does **not** wait for full binary analysis to finish.
 
-### GitHub Action
+Pin a release tag when you use it (`@v1` or `@v1.0.8`). That tag is the code that runs.
 
-```bash
-- uses: NetRiseInc/binary-composition-analysis@v1
+## Quick start
+
+Store auth values in [GitHub secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions), then add:
+
+```yaml
+- name: Upload to NetRise
+  id: netrise
+  uses: NetRiseInc/binary-composition-analysis@v1
   with:
+    client-id: ${{ secrets.NETRISE_CLIENT_ID }}
+    client-secret: ${{ secrets.NETRISE_CLIENT_SECRET }}
+    organization-id: ${{ secrets.NETRISE_ORGANIZATION_ID }}
+    domain: ${{ secrets.NETRISE_DOMAIN }}
+    audience: ${{ secrets.NETRISE_AUDIENCE }}
+    endpoint: ${{ secrets.NETRISE_ENDPOINT }}
+    artifact-path: dist/my-package.whl
+    name: my-package
+    version: 1.2.3
 
-    # Authentication Info
-    client-id: ""
-    client-secret: ""
-    organization-id: ""
-    domain: ""
-    audience: ""
-    endpoint: ""
-    
-    # Asset Info
-    artifact-path: ""
-    name: ""
-    manufacturer: ""   (optional)
-    model: ""          (optional)
-    version: ""        (optional)
+- name: Use upload results
+  run: |
+    echo "upload-id=${{ steps.netrise.outputs.upload-id }}"
+    echo "uploaded=${{ steps.netrise.outputs.uploaded }}"
+    echo "asset-id=${{ steps.netrise.outputs.asset-id }}"
 ```
 
-### Self-Hosted
+`artifact-path` is relative to the job workspace (or an absolute path). Build or download the artifact in an earlier step so the file exists before this action runs.
 
-If you are using this in a self-hosted environment, provide the following environment variables before running the script `action.py`:
+## Inputs
+
+### Authentication (all required)
+
+| Input | What to put |
+| --- | --- |
+| `client-id` | Auth0 client ID |
+| `client-secret` | Auth0 client secret |
+| `organization-id` | NetRise organization ID |
+| `domain` | Auth0 **domain** only, e.g. `https://authn.turbine.netrise.io` — not a full `/oauth/token` URL |
+| `audience` | Auth0 audience |
+| `endpoint` | Turbine API endpoint |
+
+These match the fields in the NetRise API config you were given.
+
+### Asset
+
+| Input | Required | Notes |
+| --- | --- | --- |
+| `artifact-path` | yes | File to upload. Relative to `GITHUB_WORKSPACE`, or absolute. |
+| `name` | yes | Label for the asset in Turbine. |
+| `version` | no | Strongly recommended. |
+| `manufacturer` | no | Optional metadata. |
+| `model` | no | Optional metadata. |
+
+## Outputs
+
+| Output | Meaning |
+| --- | --- |
+| `upload-id` | Upload job ID. Keep this if you need to query status later. |
+| `uploaded` | `true` or `false` — whether the file upload finished. |
+| `asset-id` | Turbine asset ID. May be empty if provisioning is still in progress after the short poll. |
+
+Example conditional:
+
+```yaml
+- if: ${{ steps.netrise.outputs.uploaded == 'true' }}
+  run: echo "Asset ${{ steps.netrise.outputs.asset-id }}"
+```
+
+## Self-hosted
+
+Same script the Action runs. From a checkout of this repo:
 
 ```bash
-# Authentication Info
-CLIENT_ID=""
-CLIENT_SECRET=""
-ORGANIZATION_ID=""
-DOMAIN=""
-AUDIENCE=""
-ENDPOINT=""
+pip install -r requirements.txt
 
-# Asset Info
-ARTIFACT_PATH=""
-NAME=""
-MANUFACTURER=""   (optional)
-MODEL=""          (optional)
-VERSION=""        (optional)
+export CLIENT_ID=...
+export CLIENT_SECRET=...
+export ORGANIZATION_ID=...
+export DOMAIN=https://authn.turbine.netrise.io
+export AUDIENCE=...
+export ENDPOINT=...
+
+export ARTIFACT_PATH=./firmware.bin   # relative to cwd, or absolute
+export NAME=my-firmware
+export VERSION=1.2.3                  # optional: MANUFACTURER, MODEL
+
+python action.py
+
+set -a; source netrise-outputs.env; set +a
+echo "$UPLOAD_ID $UPLOADED $ASSET_ID"
 ```
 
-You can also provide a `config.yaml` file in the working directory of the script to provide authentication info. If you do this, you can omit the authentication environment variables. But please don't put this file in your repository, as it contains sensitive information.
+Optional: put auth fields in a local `config.yaml` (`KEY: value` lines) instead of exporting them. Do not commit that file.
 
-## Documentation
+## Troubleshooting
 
-### Input
-
-#### Authentication
-
-The Authentication inputs are required as they provide necessary authentication information to NetRise's servers. You can find this information in your provided NetRise API configuration file (config.yaml). It is recommended to use GitHub's [secret](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) system to hold this data so as not to keep sensitive information in plain text in your repository.
-
-#### Asset
-
-The asset inputs configure how your software artifacts are sent to NetRise. Only two of these are required.
-
-`artifact-path` (required): This is the path to your software artifact that will be submitted to Turbine for analysis.
-
-`name` (required): This is the name of your software artifact. This can be whatever you want, it will be the primary label of the asset when submitted to Turbine.
-
-`manufacturer` (optional): The manufacturer of your software artifact.
-
-`model` (optional): The model of your software artifact.
-
-`version` (optional): The current version of your software artifact. This field is optional, though it is very recommended.
-
-### Output
-
-#### GitHub
-
-After running, the action provides the following outputs:
-
-```bash
-upload-id - The ID for the upload job
-uploaded - Boolean indicating if the upload is complete
-asset-id - The asset's ID in the system
-```
-
-#### Self-Hosted
-
-If in a self-hosted environment, the action provides the following environment variables after running:
-
-```bash
-UPLOAD_ID - The ID for the upload job
-UPLOADED - Boolean indicating if the upload is complete
-ASSET_ID - The asset's ID in the system
-```
-
-### Errors
-
-#### BadInputException
-
-This exception occurs when a required input is not provided. Check the Usage section above to find which required input you are not providing. All inputs except those marked (optional) are required.
-
-#### AuthException
-
-An exception has occurred while initially authenticating. This is likely due to incorrect authentication credentials, so double-check your auth info and ensure they match those in your given NetRise configuration file. This could also occur due to a network issue (e.g., failing to connect to NetRise's authentication servers in the first place).
-
-#### SubmitAssetException
-
-An exception occurred when trying to submit your software artifact to Turbine. This is most likely a network issue: either failing to get an upload URL from NetRise's servers, or failing to upload the artifact to that URL. It is also possible this is an authentication issue, so double-check your authentication information.
+| Symptom | Likely cause |
+| --- | --- |
+| `BadInputException` | Missing required input, or `artifact-path` does not exist at run time. |
+| `AuthException` | Wrong credentials, or `domain` is a token URL instead of the Auth0 domain. |
+| `SubmitAssetException` | Upload URL / PUT / status query failed (network or auth). |
+| Empty `asset-id`, job still green | Normal after the short poll; use `upload-id` to check later. Analysis is not finished yet. |
 
 ## Support
 
-You may contact us at <support@netrise.com> for any further questions.
+<support@netrise.com>
+
+## Maintainers
+
+```bash
+make install   # once
+make check     # lint + format check + tests (same gates as CI)
+```
+
+Release and floating `@v1` tag steps: [RELEASE.md](RELEASE.md).

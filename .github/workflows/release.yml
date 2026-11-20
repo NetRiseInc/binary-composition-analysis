@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog notes
+        id: notes
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          # Drop a leading "v." mistaken prefix if present (legacy tags)
+          VERSION="${VERSION#.}"
+          awk -v ver="$VERSION" '
+            BEGIN { keep=0 }
+            $0 ~ "^## " ver "$" { keep=1; next }
+            keep && $0 ~ /^## / { exit }
+            keep { print }
+          ' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "No CHANGELOG section found for $VERSION; using tag message fallback."
+            echo "Release $TAG" > /tmp/release-notes.md
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: /tmp/release-notes.md
+          generate_release_notes: false

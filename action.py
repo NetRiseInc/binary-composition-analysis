@@ -1,5 +1,16 @@
 import os
-from auth import create_sdk_config, create_client, submit_asset, query_asset_upload_with_retry, DetailedException
+import sys
+from pathlib import Path
+
+from auth import (
+    DetailedException,
+    create_client,
+    create_sdk_config,
+    query_asset_upload_with_retry,
+    submit_asset,
+)
+
+SELF_HOSTED_OUTPUT_FILE = "netrise-outputs.env"
 
 
 class BadInputException(DetailedException):
@@ -13,15 +24,21 @@ class Output:
         self.asset_id = ""
 
     def write(self):
+        uploaded = "true" if self.uploaded else "false"
         if is_github_action():
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 print(f"upload-id={self.upload_id}", file=f)
-                print(f"uploaded={self.uploaded}", file=f)
+                print(f"uploaded={uploaded}", file=f)
                 print(f"asset-id={self.asset_id}", file=f)
         else:
-            os.environ["UPLOAD_ID"] = self.upload_id
-            os.environ["UPLOADED"] = str(self.uploaded)
-            os.environ["ASSET_ID"] = self.asset_id
+            with open(SELF_HOSTED_OUTPUT_FILE, "w") as f:
+                print(f"UPLOAD_ID={self.upload_id}", file=f)
+                print(f"UPLOADED={uploaded}", file=f)
+                print(f"ASSET_ID={self.asset_id}", file=f)
+            print(
+                f"Wrote outputs to {SELF_HOSTED_OUTPUT_FILE}. "
+                f"Run: set -a; source {SELF_HOSTED_OUTPUT_FILE}; set +a"
+            )
 
 
 OUTPUT = Output()
@@ -35,7 +52,7 @@ def error(exception):
     print()
     print("Check the README documentation for info about this exception.")
     print("For further support, contact support@netrise.com")
-    exit(1)
+    sys.exit(1)
 
 
 def str_error(title, message):
@@ -51,18 +68,33 @@ def get_input(env: str, required: bool):
     upper = env.upper().replace("-", "_")
     lower = env.lower().replace("_", "-")
     if is_github_action():
-        input = lower
+        input_name = lower
     else:
-        input = upper
+        input_name = upper
     value = os.getenv(upper, None)
 
     if value is None and required:
-        raise BadInputException(f"Input '{input}' is required.")
+        raise BadInputException(f"Input '{input_name}' is required.")
     return value
 
 
 def is_github_action():
-    return os.getenv("GITHUB_ACTIONS", False)
+    return os.getenv("GITHUB_ACTIONS") == "true"
+
+
+def resolve_artifact_path(artifact_path: str) -> str:
+    """Resolve artifact path relative to GITHUB_WORKSPACE (or cwd) when not absolute."""
+    path = Path(artifact_path)
+    if not path.is_absolute():
+        base = Path(os.getenv("GITHUB_WORKSPACE") or os.getcwd())
+        path = base / path
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise BadInputException(
+            f"Artifact not found at '{resolved}'",
+            "artifact-path must be a path relative to the job workspace, or an absolute path to an existing file.",
+        )
+    return str(resolved)
 
 
 def create_config():
@@ -75,7 +107,7 @@ def create_config():
                 value = value.strip().replace('"', "")
                 os.environ[name] = value
             print("Using authentication info from config.yaml")
-    except Exception as e:
+    except Exception:
         pass
 
     # create the SDK config
@@ -96,7 +128,7 @@ def main():
         config = create_config()
 
         # collect asset inputs
-        artifact_path = get_input("ARTIFACT_PATH", True)
+        artifact_path = resolve_artifact_path(get_input("ARTIFACT_PATH", True))
         name = get_input("NAME", True)
         manufacturer = get_input("MANUFACTURER", False)
         model = get_input("MODEL", False)
@@ -106,7 +138,7 @@ def main():
 
     # log OK and collected asset info
     print("Inputs OK!")
-    print(f"'{artifact_path.split('/')[-1]}' will be submitted as '{name}'")
+    print(f"'{Path(artifact_path).name}' will be submitted as '{name}'")
     if manufacturer:
         print(f"Manufacturer: '{manufacturer}'")
     if model:
@@ -123,25 +155,30 @@ def main():
 
     # submit asset and get upload_id
     try:
-        OUTPUT.upload_id = submit_asset(
-            client, artifact_path, name, manufacturer, model, version
-        )
+        OUTPUT.upload_id = submit_asset(client, artifact_path, name, manufacturer, model, version)
     except Exception as e:
         error(e)
 
     print(f"Upload complete. Upload ID: {OUTPUT.upload_id}")
-    
+
     # query asset upload to get uploaded status and asset_id with retry logic
     print("Querying asset upload status...")
     try:
         # Get retry configuration from environment (optional, defaults to 10 retries with 2s delay)
         max_retries = max(1, int(os.getenv("MAX_RETRIES", "10")))  # Ensure at least 1 retry
-        retry_delay = max(0.5, float(os.getenv("RETRY_DELAY_SECONDS", "2.0")))  # Ensure at least 0.5s delay
-        
+        retry_delay = max(
+            0.5, float(os.getenv("RETRY_DELAY_SECONDS", "2.0"))
+        )  # Ensure at least 0.5s delay
+
         OUTPUT.upload_id, OUTPUT.uploaded, OUTPUT.asset_id = query_asset_upload_with_retry(
-            client, OUTPUT.upload_id, max_retries=max_retries, retry_delay_seconds=retry_delay
+            client,
+            OUTPUT.upload_id,
+            max_retries=max_retries,
+            retry_delay_seconds=retry_delay,
         )
-        print(f"Final status - Upload ID: {OUTPUT.upload_id}, Uploaded: {OUTPUT.uploaded}, Asset ID: {OUTPUT.asset_id}")
+        print(
+            f"Final status - Upload ID: {OUTPUT.upload_id}, Uploaded: {OUTPUT.uploaded}, Asset ID: {OUTPUT.asset_id}"
+        )
     except Exception as e:
         error(e)
 

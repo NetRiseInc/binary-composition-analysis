@@ -1,7 +1,9 @@
 import os
-from netrise_turbine_sdk import TurbineClient, TurbineClientConfig
-from netrise_turbine_sdk_graphql.input_types import SubmitAssetInput, AssetUploadInput
+import time
+
 import httpx
+from netrise_turbine_sdk import TurbineClient, TurbineClientConfig
+from netrise_turbine_sdk_graphql.input_types import AssetUploadInput, SubmitAssetInput
 
 
 class DetailedException(Exception):
@@ -29,14 +31,14 @@ def create_sdk_config() -> TurbineClientConfig:
             "DOMAIN is required",
             "The DOMAIN environment variable must be set.",
         )
-    
+
     endpoint = os.getenv("ENDPOINT")
     if not endpoint:
         raise AuthException(
             "ENDPOINT is required",
             "The ENDPOINT environment variable must be set.",
         )
-    
+
     return TurbineClientConfig(
         endpoint=endpoint,
         domain=domain,
@@ -65,12 +67,12 @@ def submit_asset(
     client: TurbineClient,
     artifact_path: str,
     name: str,
-    manufacturer: str = None,
-    model: str = None,
-    version: str = None,
+    manufacturer: str | None = None,
+    model: str | None = None,
+    version: str | None = None,
 ) -> str:
     """Submit an asset and return the upload_id.
-    
+
     Args:
         client: TurbineClient instance
         artifact_path: Path to the artifact file
@@ -78,12 +80,12 @@ def submit_asset(
         manufacturer: Optional manufacturer
         model: Optional model
         version: Optional version
-    
+
     Returns:
         upload_id: The upload ID for this submission
     """
     print("Submitting asset...")
-    
+
     try:
         # Create SubmitAssetInput with optional fields
         submit_input = SubmitAssetInput(
@@ -92,35 +94,32 @@ def submit_asset(
             model=model or None,
             version=version or None,
         )
-        
+
         # Call mutation to get upload URL
         # Use just the filename, not the full path
-        import os as os_module
-        file_name = os_module.path.basename(artifact_path)
+        file_name = os.path.basename(artifact_path)
         with client.graphql() as gql_client:
             response = gql_client.mutation_asset_submit(
                 asset_submit_file_name=file_name,
                 asset_submit_args=submit_input,
             )
-            
+
             upload_url = response.asset.submit.upload_url
             upload_id = response.asset.submit.upload_id
-        
-        # Upload file to the upload URL with proper headers and timeout
-        with open(artifact_path, "rb") as f:
-            file_content = f.read()
-            with httpx.Client() as http_client:
-                upload_response = http_client.put(
-                    upload_url,
-                    content=file_content,
-                    headers={"Content-Type": "application/octet-stream"},
-                    timeout=300.0,
-                )
-                upload_response.raise_for_status()
-        
+
+        # Stream the file to the upload URL (avoid loading large artifacts into memory)
+        with open(artifact_path, "rb") as f, httpx.Client() as http_client:
+            upload_response = http_client.put(
+                upload_url,
+                content=f,
+                headers={"Content-Type": "application/octet-stream"},
+                timeout=300.0,
+            )
+            upload_response.raise_for_status()
+
         print("Successfully submitted asset")
         return upload_id
-        
+
     except Exception as e:
         raise SubmitAssetException(
             f"Failed to submit asset: {e} ({type(e).__name__})",
@@ -130,11 +129,11 @@ def submit_asset(
 
 def query_asset_upload(client: TurbineClient, upload_id: str) -> tuple[str, bool, str]:
     """Query asset upload status and return upload_id, uploaded status, and asset_id.
-    
+
     Args:
         client: TurbineClient instance
         upload_id: The upload ID to query
-    
+
     Returns:
         tuple: (upload_id, uploaded, asset_id)
     """
@@ -143,12 +142,12 @@ def query_asset_upload(client: TurbineClient, upload_id: str) -> tuple[str, bool
             response = gql_client.query_asset_upload(
                 asset_upload_args=AssetUploadInput(upload_id=upload_id)
             )
-        
+
         # Note: asset_upload can be null if the uploadId is unknown / expired
         upload = response.asset_upload
         if not upload:
             return (upload_id, False, "")
-        
+
         return (
             upload.upload_id or upload_id,
             upload.uploaded or False,
@@ -168,38 +167,45 @@ def query_asset_upload_with_retry(
     retry_delay_seconds: float = 2.0,
 ) -> tuple[str, bool, str]:
     """Query asset upload status with retry logic until asset_id is available or max retries reached.
-    
+
     Args:
         client: TurbineClient instance
         upload_id: The upload ID to query
         max_retries: Maximum number of retry attempts (default: 10, minimum: 1)
         retry_delay_seconds: Delay between retries in seconds (default: 2.0, minimum: 0.5)
-    
+
     Returns:
         tuple: (upload_id, uploaded, asset_id)
     """
-    import time
-    
     # Ensure valid retry parameters
     max_retries = max(1, max_retries)
     retry_delay_seconds = max(0.5, retry_delay_seconds)
-    
+
     for attempt in range(1, max_retries + 1):
         upload_id_result, uploaded, asset_id = query_asset_upload(client, upload_id)
-        
+
         # If we got an asset_id, we're done
         if asset_id:
             if attempt > 1:
                 print(f"Asset ID retrieved after {attempt} attempt(s)")
             return (upload_id_result, uploaded, asset_id)
-        
+
         # If this is not the last attempt, wait and retry
         if attempt < max_retries:
-            print(f"Attempt {attempt}/{max_retries}: Asset ID not yet available. Retrying in {retry_delay_seconds}s...")
+            print(
+                f"Attempt {attempt}/{max_retries}: Asset ID not yet available. "
+                f"Retrying in {retry_delay_seconds}s..."
+            )
             time.sleep(retry_delay_seconds)
         else:
-            print(f"Attempt {attempt}/{max_retries}: Asset ID still not available after {max_retries} attempts.")
-            print("This is normal - the asset may still be processing. The upload_id can be used to query status later.")
-    
+            print(
+                f"Attempt {attempt}/{max_retries}: Asset ID still not available after "
+                f"{max_retries} attempts."
+            )
+            print(
+                "This is normal - the asset may still be processing. "
+                "The upload_id can be used to query status later."
+            )
+
     # Return the last result even if asset_id is empty
     return (upload_id_result, uploaded, asset_id)

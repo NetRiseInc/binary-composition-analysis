@@ -1,0 +1,7 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+# Action entrypoints intentionally catch broad Exception to map SDK/network
+# failures into user-facing Auth/Submit/BadInput errors.
+ignore = ["BLE001", "S110"]
